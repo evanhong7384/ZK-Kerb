@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 )
 
 
@@ -11,10 +12,18 @@ func main() {
 	go startServer()
 
 	// Request user input for message to send
-	var msg string
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		fmt.Printf("Send message to Server1: ") 
-		fmt.Scan(&msg)
+		fmt.Printf("Send message to Server1: ")
+		msg, err := reader.ReadString('\n') // Read the entire line, including spaces
+        if err != nil {
+            fmt.Println("Error reading input:", err)
+            continue
+        }
+
+        // Remove the newline character from the input
+        msg = msg[:len(msg)-1]
+		
 		go startClient(&msg)
 	}
 }
