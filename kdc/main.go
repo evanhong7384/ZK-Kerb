@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"math/rand"
+	"time"
 )
-
+ var authenticated bool = false
 
 func main() {
 	startServer()
@@ -15,6 +17,7 @@ func main() {
 
 func startServer() {
 	// Server (listening on a port)
+	rand.Seed(time.Now().UnixNano())
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println(err)
@@ -46,6 +49,15 @@ func handleConnection(conn net.Conn) {
 	}
 	fmt.Printf("Received from Client: %s", message) // print message received
 
+	// 50/50 approval
+	if !authenticated {
+		if rand.Intn(2) == 0 {
+			conn.Write([]byte("OK\n"))
+			authenticated = true
+		} else {
+			conn.Write([]byte("FAIL\n"))
+		}
+	}
 
 
 
