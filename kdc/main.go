@@ -1,27 +1,27 @@
 package main
 
 import (
-	"encoding/json"
 	"bufio"
+	"bytes"
+	"context"
 	crypto_rand "crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	math_rand "math/rand"
 	"net"
+	"net/http"
 	"os"
 	"time"
-	"log"
-	"net/http"
-	"bytes"
-	"encoding/base64"
-	"context"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
-    "github.com/consensys/gnark/frontend"
-    "github.com/consensys/gnark/frontend/cs/r1cs"
-    "github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 )
 
 type Circuit struct {
@@ -31,15 +31,15 @@ type Circuit struct {
 
 func (c *Circuit) Define(api frontend.API) error {
 	// binary multiply twice instead of one 3-way Mul
-    x2  := api.Mul(c.X, c.X)
-    x3  := api.Mul(x2, c.X)
+	x2 := api.Mul(c.X, c.X)
+	x3 := api.Mul(x2, c.X)
 
-    // binary add twice instead of one 3-way Add
-    sum1 := api.Add(x3, c.X)
-    res  := api.Add(sum1, 5)
+	// binary add twice instead of one 3-way Add
+	sum1 := api.Add(x3, c.X)
+	res := api.Add(sum1, 5)
 
-    api.AssertIsEqual(res, c.Y)
-    return nil
+	api.AssertIsEqual(res, c.Y)
+	return nil
 }
 
 var verifyingKey groth16.VerifyingKey
@@ -48,8 +48,15 @@ var authenticated bool = false
 
 // Same p and g (must match client)
 var (
-	pHex = "some hex"
-	g    = big.NewInt(2)
+	pHex = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" +
+		"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" +
+		"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" +
+		"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" +
+		"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" +
+		"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" +
+		"83655D23DCA3AD961C62F356208552BB9ED529077096966D" +
+		"670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF"
+	g = big.NewInt(2)
 )
 
 func main() {
@@ -116,16 +123,12 @@ func handleConnection(conn net.Conn) {
 	}
 	fmt.Printf("Received from Client: %s", message) // print message received
 
-	
-
-
-
 	buf := []byte("Hello client\n")
 
 	conn.Write(buf)
 
 	return
-} 
+}
 
 func ZKKDC() {
 
@@ -172,7 +175,7 @@ func ZKKDC() {
 	http.HandleFunc("/prove", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ProofB64 string `json:"proof"`
-			Y     int           `json:"y"`
+			Y        int    `json:"y"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -210,31 +213,31 @@ func ZKKDC() {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
-		select{
+		select {
 		case <-proofOK:
 		default:
 			close(proofOK)
 		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "OK")
-		
+
 	})
 
 	srv := &http.Server{
-        Addr:    ":8081",
-        Handler: mux,
-    }
+		Addr:    ":8081",
+		Handler: mux,
+	}
 
-	go func(){
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	go func() {
+		log.Fatal(http.ListenAndServe(":8081", nil))
 	}()
-	<-proofOK 
+	<-proofOK
 
 	// 6) gracefully shut down the HTTP server
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    if err := srv.Shutdown(ctx); err != nil {
-        log.Fatalf("HTTP shutdown error: %v", err)
-    }
-	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("HTTP shutdown error: %v", err)
+	}
+
 }
