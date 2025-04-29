@@ -9,7 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/big"
 	"net"
@@ -226,6 +226,6 @@ func ZKAuth() {
 		log.Fatalf("POST error: %v", err)
 	}
 	defer resp2.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp2.Body)
+	respBody, _ := io.ReadAll(resp2.Body)
 	fmt.Printf("Server responded [%d]: %s\n", resp2.StatusCode, string(respBody))
 }
