@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	crypto_rand "crypto/rand"
@@ -112,20 +111,6 @@ func handleConnection(conn net.Conn) {
 	sharedSecret := new(big.Int).Exp(&clientPub, kdcPrivate, p)
 	sessionKey := sha256.Sum256(sharedSecret.Bytes())
 	fmt.Printf("Shared secret (session key) calculated: %x\n", sessionKey)
-
-	// reading client's message
-	reader := bufio.NewReader(conn)
-
-	message, err := reader.ReadString('\n') // Read until newline
-	if err != nil {
-		fmt.Println("Error reading from connection:", err)
-		return
-	}
-	fmt.Printf("Received from Client: %s", message) // print message received
-
-	buf := []byte("Hello client\n")
-
-	conn.Write(buf)
 
 	return
 }

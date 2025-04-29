@@ -107,23 +107,6 @@ func startClient(msg *string) {
 	sharedSecret := new(big.Int).Exp(&kdcPub, userPriv, p)
 	sessionKey := sha256.Sum256(sharedSecret.Bytes())
 	fmt.Printf("Derived session key: %x\n", sessionKey)
-
-	// authentication
-	_, err = conn.Write([]byte(*msg + "\n"))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	buf := make([]byte, 1024)
-
-	n, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Received: %s\n", buf[:n])
 }
 
 func authenticateWithKDC(plaintext string) (bool, error) {
