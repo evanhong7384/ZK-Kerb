@@ -54,28 +54,28 @@ var (
 
 func main() {
 	// Request user input for message to send
-	reader := bufio.NewReader(os.Stdin)
+	// reader := bufio.NewReader(os.Stdin)
 
 	ZKAuth()
 
 	fmt.Println("✅ Authenticated — now starting client session.")
 
-	for {
-		fmt.Printf("Send message to KDC: ")
-		msg, err := reader.ReadString('\n') // Read the entire line, including spaces
-		if err != nil {
-			fmt.Println("Error reading input:", err)
-			continue
-		}
+	// for {
+	// 	fmt.Printf("Send message to KDC: ")
+	// 	msg, err := reader.ReadString('\n') // Read the entire line, including spaces
+	// 	if err != nil {
+	// 		fmt.Println("Error reading input:", err)
+	// 		continue
+	// 	}
 
-		// Remove the newline character from the input
-		msg = msg[:len(msg)-1]
+	// 	// Remove the newline character from the input
+	// 	msg = msg[:len(msg)-1]
+	// }
 
-		startClient(&msg)
-	}
+	startClient()
 }
 
-func startClient(msg *string) {
+func startClient() {
 	// Client (connecting to the server)
 	conn, err := net.Dial("tcp", ":8080")
 	defer conn.Close()
