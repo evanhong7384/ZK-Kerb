@@ -105,8 +105,8 @@ func startClient() {
 	}
 
 	sharedSecret := new(big.Int).Exp(&kdcPub, userPriv, p)
-	sessionKey := sha256.Sum256(sharedSecret.Bytes())
-	fmt.Printf("Derived session key: %x\n", sessionKey)
+	mock_password := sha256.Sum256(sharedSecret.Bytes())
+	fmt.Printf("Derived session key: %x\n", mock_password)
 }
 
 func authenticateWithKDC(plaintext string) (bool, error) {

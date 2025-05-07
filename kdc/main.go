@@ -109,8 +109,8 @@ func handleConnection(conn net.Conn) {
 	}
 
 	sharedSecret := new(big.Int).Exp(&clientPub, kdcPrivate, p)
-	sessionKey := sha256.Sum256(sharedSecret.Bytes())
-	fmt.Printf("Shared secret (session key) calculated: %x\n", sessionKey)
+	mock_password := sha256.Sum256(sharedSecret.Bytes())
+	fmt.Printf("Shared secret (session key) calculated: %x\n", mock_password)
 
 	return
 }
