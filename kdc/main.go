@@ -29,21 +29,34 @@ type Circuit struct {
 }
 
 func (c *Circuit) Define(api frontend.API) error {
-	// binary multiply twice instead of one 3-way Mul
-	x2 := api.Mul(c.X, c.X)
-	x3 := api.Mul(x2, c.X)
+	//x^4+- 10246*x^3 + 36745188*x^2 - 53772937114*x + 26415943377211 == 0
+    x2 := api.Mul(c.X, c.X)      
+    x3 := api.Mul(x2, c.X)       
+    x4 := api.Mul(x3, c.X)       
 
-	// binary add twice instead of one 3-way Add
-	sum1 := api.Add(x3, c.X)
-	res := api.Add(sum1, 5)
+    neg10246, _    := new(big.Int).SetString("-10246", 10)
+    pos36745188, _ := new(big.Int).SetString("36745188", 10)
+    neg53772937114, _ := new(big.Int).SetString("-53772937114", 10)
+    pos26415943377211, _ := new(big.Int).SetString("26415943377211", 10)
 
-	api.AssertIsEqual(res, c.Y)
-	return nil
+    t3 := api.Mul(x3, neg10246)           
+    t2 := api.Mul(x2, pos36745188)       
+    t1 := api.Mul(c.X, neg53772937114)    
+    c0 := pos26415943377211               
+
+    acc := api.Add(x4, t3)
+    acc = api.Add(acc, t2)
+    acc = api.Add(acc, t1)
+    acc = api.Add(acc, c0)
+
+    api.AssertIsEqual(acc, c.Y)
+    return nil
 }
 
 var verifyingKey groth16.VerifyingKey
 var provingKey groth16.ProvingKey
 var authenticated bool = false
+var expectedY int = 0 // global public y 
 
 // Same p and g (must match client)
 var (
@@ -160,7 +173,6 @@ func ZKKDC() {
 	http.HandleFunc("/prove", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ProofB64 string `json:"proof"`
-			Y        int    `json:"y"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
@@ -183,7 +195,7 @@ func ZKKDC() {
 			return
 		}
 		// build a public witness with just Y
-		assignment := Circuit{Y: req.Y}
+		assignment := Circuit{Y: expectedY}
 		pubWit, err := frontend.NewWitness(
 			&assignment,
 			ecc.BN254.ScalarField(),

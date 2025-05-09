@@ -31,12 +31,28 @@ type Circuit struct {
 }
 
 func (c *Circuit) Define(api frontend.API) error {
-	x2 := api.Mul(c.X, c.X)
-	x3 := api.Mul(x2, c.X)
-	sum := api.Add(x3, c.X)
-	res := api.Add(sum, 5)
-	api.AssertIsEqual(res, c.Y)
-	return nil
+	// x^4 - 10246*x^3 + 36745188*x^2 - 53772937114*x + 26415943377211 == 0
+    x2 := api.Mul(c.X, c.X)      
+    x3 := api.Mul(x2, c.X)       
+    x4 := api.Mul(x3, c.X)       
+
+    neg10246, _    := new(big.Int).SetString("-10246", 10)
+    pos36745188, _ := new(big.Int).SetString("36745188", 10)
+    neg53772937114, _ := new(big.Int).SetString("-53772937114", 10)
+    pos26415943377211, _ := new(big.Int).SetString("26415943377211", 10)
+
+    t3 := api.Mul(x3, neg10246)           
+    t2 := api.Mul(x2, pos36745188)        
+    t1 := api.Mul(c.X, neg53772937114)    
+    c0 := pos26415943377211               
+
+    acc := api.Add(x4, t3)
+    acc = api.Add(acc, t2)
+    acc = api.Add(acc, t1)
+    acc = api.Add(acc, c0)
+
+    api.AssertIsEqual(acc, 0)
+    return nil
 }
 
 // Same p and g (must match KDC)
@@ -58,7 +74,6 @@ func main() {
 
 	ZKAuth()
 
-	fmt.Println("✅ Authenticated — now starting client session.")
 
 	// for {
 	// 	fmt.Printf("Send message to KDC: ")
@@ -172,9 +187,9 @@ func ZKAuth() {
 		log.Fatalf("unmarshal PK: %v", err)
 	}
 
-	// 3) build a witness for x=3
-	x := 3
-	y := x*x*x + x + 5
+	// 3) build a witness for x=2053 etc. 
+	x := 4093 //2053, 3079, 4093, 1021
+	y := x*x*x*x - 10246*x*x*x + 36745188*x*x - 53772937114*x + 26415943377211
 	assignment := Circuit{X: x, Y: y}
 	fullWit, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
@@ -201,7 +216,6 @@ func ZKAuth() {
 	// 5) send proof + public Y to server
 	payload := map[string]interface{}{
 		"proof": proofB64,
-		"y":     y,
 	}
 	b, _ := json.Marshal(payload)
 	resp2, err := http.Post("http://localhost:8081/prove", "application/json", bytes.NewReader(b))
@@ -210,5 +224,6 @@ func ZKAuth() {
 	}
 	defer resp2.Body.Close()
 	respBody, _ := io.ReadAll(resp2.Body)
+	fmt.Println("✅ Authenticated — now starting client session.")
 	fmt.Printf("Server responded [%d]: %s\n", resp2.StatusCode, string(respBody))
 }
