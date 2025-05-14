@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	crypto_rand "crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -68,6 +70,15 @@ var (
 	g = big.NewInt(2)
 )
 
+type Ticket struct {
+	SessionKey int
+	// username string
+	// address string
+	ServiceName string
+	// lifespan int
+	// timestamp int
+}
+
 func main() {
 	// Request user input for message to send
 	// reader := bufio.NewReader(os.Stdin)
@@ -111,6 +122,7 @@ func startClient() {
 		os.Exit(1)
 	}
 
+	// Receive KDC public key
 	var kdcPub big.Int
 	decoder := gob.NewDecoder(conn)
 	err = decoder.Decode(&kdcPub)
@@ -122,7 +134,28 @@ func startClient() {
 	sharedSecret := new(big.Int).Exp(&kdcPub, userPriv, p)
 	mock_password := sha256.Sum256(sharedSecret.Bytes())
 	fmt.Printf("Derived session key: %x\n", mock_password)
+
+	// Receive Ticket Granting Ticket (TGT)
+	var encryptedTGT []byte 
+	err = decoder.Decode(&encryptedTGT)
+	if err != nil {
+		fmt.Println("Error receiving Ticket Granting Ticket:", err)
+		os.Exit(1)
+	}
+
+	var tgt_aes_key = []byte("fe86ed5edd0cfbefc32f904747c30bb20de64010b6c62a97a70e2e021abdbee0")
+
+	// Decrypt ticket (for testing)
+	ticket, err := decryptTicket(encryptedTGT, tgt_aes_key)
+    if err != nil {
+        fmt.Println("Error decrypting ticket:", err)
+        os.Exit(1)
+    }
+
+	// Print the decrypted ticket
+	fmt.Printf("Decrypted Ticket: SessionKey=%d, ServiceName=%s\n", ticket.SessionKey, ticket.ServiceName)
 }
+
 
 func authenticateWithKDC(plaintext string) (bool, error) {
 	// contacts kdc
@@ -226,4 +259,31 @@ func ZKAuth() {
 	respBody, _ := io.ReadAll(resp2.Body)
 	fmt.Println("✅ Authenticated — now starting client session.")
 	fmt.Printf("Server responded [%d]: %s\n", resp2.StatusCode, string(respBody))
+}
+
+
+// Decrypt the ticket using AES
+func decryptTicket(encryptedTicket []byte, key []byte) (*Ticket, error) {
+    block, err := aes.NewCipher(key)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create cipher: %w", err)
+    }
+
+    if len(encryptedTicket) < aes.BlockSize {
+        return nil, fmt.Errorf("ciphertext too short")
+    }
+
+    iv := encryptedTicket[:aes.BlockSize]
+    ciphertext := encryptedTicket[aes.BlockSize:]
+
+    stream := cipher.NewCFBDecrypter(block, iv)
+    stream.XORKeyStream(ciphertext, ciphertext)
+
+    var ticket Ticket
+    err = gob.NewDecoder(bytes.NewReader(ciphertext)).Decode(&ticket)
+    if err != nil {
+        return nil, fmt.Errorf("failed to decode ticket: %w", err)
+    }
+
+    return &ticket, nil
 }
